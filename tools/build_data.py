@@ -84,14 +84,15 @@ def collect_children(rootname):
                 m=c.component.read().m_Mesh.read(); h=MeshHandler(m); h.process()
                 if not h.m_Vertices or not h.m_UV0: print("skip empty",cg.m_Name); continue
                 uv=h.m_UV1 if (rootname=="Balls" and h.m_UV1) else h.m_UV0      # balls: UV1 selects the ball's cell in BallsTexture
-                out[cg.m_Name]=(t,list(h.m_Vertices),list(h.m_Normals) if h.m_Normals else None,[tuple(u[:2]) for u in uv],list(h.m_IndexBuffer))
+                uv0=[tuple(u[:2]) for u in h.m_UV0]                           # balls: UV0 is the sphere unwrap used by the dimple normal map
+                out[cg.m_Name]=(t,list(h.m_Vertices),list(h.m_Normals) if h.m_Normals else None,[tuple(u[:2]) for u in uv],list(h.m_IndexBuffer),uv0)
     return out
 pc=collect_children("Putters")
 # normalise: whole putter (club_0 + shaft_0 + hand_0) -> 0.9 m tall, club sole at y=0
 ref=np.vstack([xf(pc[n][1],pc[n][0]) for n in ("club_0","shaft_0","hand_0")])
 PS=0.9/(ref[:,1].max()-ref[:,1].min()); PY=ref[:,1].min()
 pparts={}
-for name,(t,V,N,UV,T) in pc.items():
+for name,(t,V,N,UV,T,_) in pc.items():
     P=(xf(V,t)-[0,PY,0])*PS
     pparts[name]=mesh_entry(rh(P), rh(xfn(N,t)) if N else None, UV, T)
 ids=sorted({re.match(r"(?:club|shaft|hand)_(.+)",n).group(1) for n in pc if re.match(r"(club|shaft|hand)_",n)}, key=lambda s:(len(s),s))
@@ -105,11 +106,12 @@ print(len(putters),"putters; addons",addons)
 # ---------- balls ----------
 bc=collect_children("Balls")
 balls=[]
-for name,(t,V,N,UV,T) in sorted(bc.items(), key=lambda kv:(not kv[0][4:].isdigit(), int(kv[0][4:]) if kv[0][4:].isdigit() else 0, kv[0])):
+for name,(t,V,N,UV,T,UV0) in sorted(bc.items(), key=lambda kv:(not kv[0][4:].isdigit(), int(kv[0][4:]) if kv[0][4:].isdigit() else 0, kv[0])):
     s=t.m_LocalScale; r=t.m_LocalRotation
     P=qrot((r.x,r.y,r.z,r.w),np.array(V,float)[:,:3]*[s.x,s.y,s.z]); P-=P.mean(0)
     d=(P.max(0)-P.min(0)).max(); P*=0.0427/d                 # regulation ball: 42.7 mm
-    balls.append({"name":name,"mesh":mesh_entry(rh(P), rh(xfn(N,t)) if N else None, UV, T)})
+    e=mesh_entry(rh(P), rh(xfn(N,t)) if N else None, UV, T); e["uv0"]=put(UV0,np.float32)
+    balls.append({"name":name,"mesh":e})
 print(len(balls),"balls")
 
 # ---------- textures ----------
@@ -119,7 +121,27 @@ env2=UnityPy.load(A+r"\common_assets_all.bundle")
 bt=[o for o in env2.objects if o.type.name=="Texture2D" and o.peek_name()=="BallsTexture"][0].read().image.convert("RGB")
 bt.save(os.path.join(OUT,"data","balls_texture.png"))
 
-meta={"models":models,"parts":parts,"presets":presets,"putters":putters,"putterParts":pparts,"addons":addons,"balls":balls,"atlasSize":4096,"variantStep":16}
+# ---------- material maps ----------
+# Avatar parts + putters use Avatar_Putter_Combined (Amplify "Putter" shader, _USEMETALLICALPHA_ON):
+#   metallic = metal map R * _Metalness(1), smoothness = metal map A * _Smoothness(1), emission = emission map RGB.
+# Balls use Ball_Material (Shader Graph): same metal/smoothness packing, emission map, dimple normal map on UV0.
+# three.js reads metalness from B and roughness from G, so the metal maps are repacked (R unused = 255).
+def tex(e, name): return [o for o in e.objects if o.type.name=="Texture2D" and o.peek_name()==name][0].read().image
+def save_mr(img, fn):
+    a=np.asarray(img.convert("RGBA")).astype(np.uint8)
+    out=np.stack([np.full(a.shape[:2],255,np.uint8), 255-a[...,3], a[...,0]],-1)
+    Image.fromarray(out,"RGB").save(os.path.join(OUT,"data",fn), optimize=True)
+save_mr(tex(env,"avatar_texture_4096_brian_putters_metal"),"avatar_mr.png")
+tex(env,"avatar_texture_4096_brian_putters_emissive").convert("RGB").save(os.path.join(OUT,"data","avatar_emissive.png"))
+save_mr(tex(env2,"BallsTexture_Metalness"),"balls_mr.png")
+tex(env2,"BallsTexture_Emission").convert("RGB").save(os.path.join(OUT,"data","balls_emissive.png"), optimize=True)
+n=np.asarray(tex(env2,"BallNormalMap_Temp").convert("RGBA")).astype(np.float32)/255*2-1   # DXT5nm: X in A, Y in G
+nx,ny=n[...,3],n[...,1]; nz=np.sqrt(np.clip(1-nx*nx-ny*ny,0,1))
+Image.fromarray(((np.stack([nx,ny,nz],-1)+1)/2*255).round().astype(np.uint8),"RGB").save(os.path.join(OUT,"data","ball_normal.png"))
+materials={"avatar":{"metalness":1.0,"smoothness":1.0,"emissiveIntensity":1.0},
+           "ball":{"emissiveIntensity":1.5,"normalScale":2.0}}
+
+meta={"models":models,"parts":parts,"presets":presets,"putters":putters,"putterParts":pparts,"addons":addons,"balls":balls,"atlasSize":4096,"variantStep":16,"materials":materials}
 json.dump(meta,open(os.path.join(OUT,"data","meta.json"),"w"))
 open(os.path.join(OUT,"data","geometry.bin"),"wb").write(blob)
 # file:// friendly copies (browsers block fetch() from file://): everything as JS globals
@@ -129,4 +151,7 @@ with open(os.path.join(OUT,"data","bundle.js"),"w") as f:
     f.write("window.WMG_GEOMETRY_B64='"+base64.b64encode(bytes(blob)).decode()+"';\n")
     f.write("window.WMG_ATLAS='data:image/png;base64,"+b64file(os.path.join(OUT,"data","avatar_atlas.png"))+"';\n")
     f.write("window.WMG_BALLTEX='data:image/png;base64,"+b64file(os.path.join(OUT,"data","balls_texture.png"))+"';\n")
+    for var,fn in [("WMG_ATLAS_MR","avatar_mr.png"),("WMG_ATLAS_EMISSIVE","avatar_emissive.png"),("WMG_BALL_MR","balls_mr.png"),
+                   ("WMG_BALL_EMISSIVE","balls_emissive.png"),("WMG_BALL_NORMAL","ball_normal.png")]:
+        f.write(f"window.{var}='data:image/png;base64,"+b64file(os.path.join(OUT,"data",fn))+"';\n")
 print("geometry bytes",len(blob), "bundle.js MB", os.path.getsize(os.path.join(OUT,"data","bundle.js"))/1e6)

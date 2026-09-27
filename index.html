@@ -129,6 +129,7 @@
 // Walkabout Mini Golf avatar creator — three.js viewer, part picker and single-file 3MF/OBJ export.
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 
 const META = window.WMG_META;
 const BIN = b64ToBytes(window.WMG_GEOMETRY_B64);
@@ -190,18 +191,32 @@ function partLabel(p) {
 
 // ---------------------------------------------------------------- textures & pixel sampling
 const loadImage = src => new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = src; });
-const [atlasImg, ballImg] = await Promise.all([loadImage(window.WMG_ATLAS), loadImage(window.WMG_BALLTEX)]);
-function makeTex(img, nearest) {
+const [atlasImg, ballImg, atlasMrImg, atlasEmImg, ballMrImg, ballEmImg, ballNrmImg] = await Promise.all(
+  [window.WMG_ATLAS, window.WMG_BALLTEX, window.WMG_ATLAS_MR, window.WMG_ATLAS_EMISSIVE, window.WMG_BALL_MR, window.WMG_BALL_EMISSIVE, window.WMG_BALL_NORMAL].map(loadImage));
+function makeTex(img, nearest, data = false) {
   const t = new THREE.Texture(img);
-  t.colorSpace = THREE.SRGBColorSpace;
+  t.colorSpace = data ? THREE.NoColorSpace : THREE.SRGBColorSpace;
   t.magFilter = t.minFilter = nearest ? THREE.NearestFilter : THREE.LinearFilter;
   t.generateMipmaps = false;
   t.needsUpdate = true;
   return t;
 }
+// Game materials: metal maps are repacked at build time (G = 1 - smoothness, B = metallic), see tools/build_data.py.
+// Avatar parts + putters: Avatar_Putter_Combined (metallic = map, smoothness = map alpha, emission map).
+// Balls: Ball_Material (same packing, emission map, dimple normal map on the sphere unwrap = uv1).
+const MAT = META.materials;
 const atlasTex = makeTex(atlasImg, true), ballTex = makeTex(ballImg, false);
-const matAtlas = new THREE.MeshStandardMaterial({ map: atlasTex, flatShading: true, roughness: 0.85, metalness: 0 });
-const matBall = new THREE.MeshStandardMaterial({ map: ballTex, roughness: 0.55, metalness: 0 });
+const atlasMR = makeTex(atlasMrImg, true, true), atlasEm = makeTex(atlasEmImg, true);
+const ballMR = makeTex(ballMrImg, false, true), ballEm = makeTex(ballEmImg, false);
+const ballNrm = makeTex(ballNrmImg, false, true);
+ballNrm.channel = 1;
+const matAtlas = new THREE.MeshStandardMaterial({ map: atlasTex, flatShading: true,
+  metalnessMap: atlasMR, metalness: MAT.avatar.metalness, roughnessMap: atlasMR, roughness: 1,
+  emissiveMap: atlasEm, emissive: 0xffffff, emissiveIntensity: MAT.avatar.emissiveIntensity });
+const matBall = new THREE.MeshStandardMaterial({ map: ballTex,
+  metalnessMap: ballMR, metalness: 1, roughnessMap: ballMR, roughness: 1,
+  emissiveMap: ballEm, emissive: 0xffffff, emissiveIntensity: MAT.ball.emissiveIntensity,
+  normalMap: ballNrm, normalScale: new THREE.Vector2(MAT.ball.normalScale, MAT.ball.normalScale) });
 
 const pixCache = {};
 function pixels(which) {
@@ -226,6 +241,7 @@ function buildGeometry(mesh, { variant = 0, shape = null, smooth = false } = {})
   if (variant) for (let i = 0; i < uv.length; i += 2) uv[i] += variant * STEP;
   g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
   g.setIndex(new THREE.BufferAttribute(idx(mesh), 1));
+  if (mesh.uv0) g.setAttribute('uv1', new THREE.BufferAttribute(f32(mesh.uv0), 2));   // balls: sphere unwrap for the normal map
   if (smooth) g.computeVertexNormals();
   return g;
 }
@@ -327,11 +343,15 @@ renderer.outputColorSpace = THREE.SRGBColorSpace;
 viewer.prepend(renderer.domElement);
 const scene = new THREE.Scene();
 function addLights(s) {
-  s.add(new THREE.HemisphereLight(0xffffff, 0x8a96a8, 1.9));
+  s.add(new THREE.HemisphereLight(0xffffff, 0x8a96a8, 1.1));
   const d = new THREE.DirectionalLight(0xffffff, 1.6); d.position.set(1.2, 2, 2.5); s.add(d);
   const d2 = new THREE.DirectionalLight(0xffffff, 0.5); d2.position.set(-2, 0.5, -1); s.add(d2);
 }
 addLights(scene);
+// reflections for metallic parts; kept low because the environment also lights non-metals
+const ENV_INTENSITY = 0.65;
+const envFor = r => { const pm = new THREE.PMREMGenerator(r); const t = pm.fromScene(new RoomEnvironment(), 0.04).texture; pm.dispose(); return t; };
+scene.environment = envFor(renderer); scene.environmentIntensity = ENV_INTENSITY;
 const camera = new THREE.PerspectiveCamera(30, 1, 0.01, 50);
 camera.position.set(0.35, 0.05, 1.25);
 const controls = new OrbitControls(camera, renderer.domElement);
@@ -402,6 +422,7 @@ const THUMB = 176;
 const thumbR = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
 thumbR.setSize(THUMB, THUMB); thumbR.outputColorSpace = THREE.SRGBColorSpace;
 const thumbScene = new THREE.Scene(); addLights(thumbScene);
+thumbScene.environment = envFor(thumbR); thumbScene.environmentIntensity = ENV_INTENSITY;
 const thumbCam = new THREE.PerspectiveCamera(28, 1, 0.001, 20);
 const thumbCache = new Map();
 let thumbQueue = [];
