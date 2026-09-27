@@ -94,6 +94,13 @@
   .menu .pop > button:not(.opt) { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
   .menu .pop-note { font-size: 11.5px; color: var(--muted); }
   #camMenu .pop { width: 270px; }
+  #presetMenu .pop { width: 240px; }
+  .menu .list { display: flex; flex-direction: column; gap: 3px; max-height: min(360px, 55vh); overflow-y: auto; padding-right: 2px; }
+  .btn-group { display: inline-flex; }
+  .btn-group > :first-child, .btn-group > :first-child > summary { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+  .btn-group > :last-child, .btn-group > :last-child > summary { border-top-left-radius: 0; border-bottom-left-radius: 0; }
+  .btn-group > :not(:first-child) { margin-left: -1px; }
+  .btn-group > :hover, .btn-group > details[open] { position: relative; z-index: 1; }
   #dlMenu .pop { width: 240px; }
   .menu.down .pop { top: calc(100% + 8px); bottom: auto; left: 0; right: auto; width: 280px; }
   .menu .pop label.slider { display: grid; grid-template-columns: 1fr auto; gap: 0 8px; font-size: 12.5px; }
@@ -134,8 +141,16 @@
   <section id="viewer">
     <div class="bar top">
       <h1 data-i18n="appTitle">Walkabout Avatar Creator</h1>
-      <select id="preset" data-i18n-title="presetsTitle" title="Presets"></select>
-      <button id="random" class="icon-btn" data-i18n-title="randomTitle" title="Random avatar"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="8" cy="8" r="1.4" class="f"/><circle cx="16" cy="8" r="1.4" class="f"/><circle cx="12" cy="12" r="1.4" class="f"/><circle cx="8" cy="16" r="1.4" class="f"/><circle cx="16" cy="16" r="1.4" class="f"/></svg></button>
+      <div class="btn-group">
+        <details id="presetMenu" class="menu down">
+          <summary class="icon" data-i18n-title="presetsTitle" title="Presets"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/></svg></summary>
+          <div class="pop">
+            <div class="pop-title" data-i18n="presetsTitle">Presets</div>
+            <div class="list" id="presetList"></div>
+          </div>
+        </details>
+        <button id="random" class="icon-btn" data-i18n-title="randomTitle" title="Random avatar"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="8" cy="8" r="1.4" class="f"/><circle cx="16" cy="8" r="1.4" class="f"/><circle cx="12" cy="12" r="1.4" class="f"/><circle cx="8" cy="16" r="1.4" class="f"/><circle cx="16" cy="16" r="1.4" class="f"/></svg></button>
+      </div>
       <details id="camMenu" class="menu down">
         <summary class="icon" data-i18n-title="camTitle" title="Camera angle"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="3.5"/></svg></summary>
         <div class="pop">
@@ -256,7 +271,7 @@ const I18N = {
     hand: 'Hand', skinHand: 'Skin-colored hand', skinHandTitle: 'Off: the original gray glove',
     handAddon: 'Hand add-on {n}', shaftAddon: 'Shaft add-on {n}',
     color: 'Color', colorN: 'Color {n}', dlItem: 'Download this model',
-    presetCaptain: 'Preset: Captain (screenshot)', presetGame: 'Preset: game #{n}',
+    presetCaptain: 'Captain (screenshot)', presetGame: 'Game preset #{n}',
     preparing: 'Preparing {name}…', exportFailed: 'Export failed: {msg}', imageFailed: 'Image export failed: {msg}',
   },
   de: {
@@ -281,7 +296,7 @@ const I18N = {
     hand: 'Hand', skinHand: 'Hand in Hautfarbe', skinHandTitle: 'Aus: der originale graue Handschuh',
     handAddon: 'Hand-Extra {n}', shaftAddon: 'Schaft-Extra {n}',
     color: 'Farbe', colorN: 'Farbe {n}', dlItem: 'Dieses Modell herunterladen',
-    presetCaptain: 'Vorlage: Kapitän (Screenshot)', presetGame: 'Vorlage: Spiel #{n}',
+    presetCaptain: 'Kapitän (Screenshot)', presetGame: 'Spielvorlage #{n}',
     preparing: '{name} wird vorbereitet…', exportFailed: 'Export fehlgeschlagen: {msg}', imageFailed: 'Bildexport fehlgeschlagen: {msg}',
   },
 };
@@ -988,22 +1003,25 @@ document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => {
   renderPanel();
 });
 // presets
-const presetSel = $('#preset');
+// presets popup: stays open while browsing (closes on an outside click, like the camera and lighting popups)
 function buildPresetOptions() {
-  const v = presetSel.value;
-  presetSel.replaceChildren(new Option(t('presetCaptain'), 'captain'),
-    ...META.presets.map(p => new Option(t('presetGame', { n: p.id }) + (p.label ? ' ' + p.label : ''), 'g' + p.id)));
-  if (v) presetSel.value = v;
+  const items = [['captain', t('presetCaptain')], ...META.presets.map(p => ['g' + p.id, t('presetGame', { n: p.id }) + (p.label ? ' ' + p.label : '')])];
+  $('#presetList').replaceChildren(...items.map(([key, label]) => {
+    const b = el('button', 'opt' + (key === state.preset ? ' active' : ''), label);
+    b.dataset.preset = key; b.onclick = () => applyPreset(key);
+    return b;
+  }));
 }
+function syncPresetMenu() { document.querySelectorAll('#presetList [data-preset]').forEach(b => b.classList.toggle('active', b.dataset.preset === state.preset)); }
 buildPresetOptions();
 function applyPreset(val) {
   const opts = val === 'captain' ? CAPTAIN : META.presets.find(p => 'g' + p.id === val).options;
   const r = equipFromOptions(opts);
   state.model = r.model; state.equip = r.equip;
   if (!availableCats().includes(state.cat)) state.cat = 'model';
+  state.preset = val; syncPresetMenu();
   refreshAvatar(); renderPanel();
 }
-presetSel.onchange = () => applyPreset(presetSel.value);
 // randomize (standard human avatar)
 $('#random').onclick = () => {
   state.model = 'model_1';
@@ -1017,7 +1035,7 @@ $('#random').onclick = () => {
     const maxV = cat === 'head' ? Math.min(p.colors, 10) : p.colors;   // natural skin tones first
     eq[cat] = { part: p, variant: maxV > 1 ? Math.floor(Math.random() * maxV) : p.color };
   }
-  state.equip = eq; refreshAvatar(); renderPanel();
+  state.equip = eq; state.preset = null; syncPresetMenu(); refreshAvatar(); renderPanel();
 };
 // camera menu: angle buttons + snap back; like the lighting panel it stays open until a click outside it
 const closeMenus = () => document.querySelectorAll('details.menu').forEach(m => { m.open = false; });
