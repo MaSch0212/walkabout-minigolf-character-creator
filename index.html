@@ -82,7 +82,7 @@
     border-radius: 12px; padding: 10px 12px; box-shadow: 0 8px 24px rgba(0,0,0,.18); display: flex; flex-direction: column; gap: 6px; z-index: 5; }
   .menu .pop label { display: flex; gap: 8px; align-items: center; cursor: pointer; }
   .menu .pop-title { font-size: 12px; color: var(--muted); margin-top: 2px; }
-  .menu.down .pop { top: calc(100% + 8px); bottom: auto; left: 0; right: auto; width: 250px; }
+  .menu.down .pop { top: calc(100% + 8px); bottom: auto; left: 0; right: auto; width: 280px; }
   .menu .pop label.slider { display: grid; grid-template-columns: 1fr auto; gap: 0 8px; font-size: 12.5px; }
   .menu .slider input { grid-column: 1 / -1; width: 100%; accent-color: var(--accent); }
   .menu .slider output { color: var(--muted); font-variant-numeric: tabular-nums; }
@@ -107,66 +107,76 @@
 </head>
 <body>
 <div id="loading">Loading models…</div>
+<script>
+  // pick the language before the (large) data bundle loads, so the loading message is already translated
+  window.WMG_LANG = (() => {
+    try { const s = localStorage.getItem('wmg.lang'); if (s === 'en' || s === 'de') return s; } catch {}
+    return (navigator.languages || [navigator.language || 'en']).some(l => /^de\b/i.test(l)) ? 'de' : 'en';
+  })();
+  document.documentElement.lang = window.WMG_LANG;
+  if (window.WMG_LANG === 'de') document.getElementById('loading').textContent = 'Modelle werden geladen…';
+</script>
 <div id="app">
   <section id="viewer">
     <div class="bar top">
-      <h1>Walkabout Avatar Creator</h1>
-      <select id="preset" title="Presets"></select>
-      <button id="random" title="Random avatar">Randomize</button>
-      <select id="camView" title="Camera angle">
-        <option value="auto">Camera: Auto</option>
-        <option value="front">Front</option>
-        <option value="frontLeft">Front ¾ left</option>
-        <option value="frontRight">Front ¾ right</option>
-        <option value="left">Left side</option>
-        <option value="right">Right side</option>
-        <option value="back">Back</option>
-        <option value="top">Top</option>
-        <option value="low">Low angle</option>
-        <option value="face">Face close-up</option>
+      <h1 data-i18n="appTitle">Walkabout Avatar Creator</h1>
+      <select id="preset" data-i18n-title="presetsTitle" title="Presets"></select>
+      <button id="random" data-i18n="randomize" data-i18n-title="randomTitle" title="Random avatar">Randomize</button>
+      <select id="camView" data-i18n-title="camTitle" title="Camera angle">
+        <option value="auto" data-i18n="cam_auto">Camera: Auto</option>
+        <option value="front" data-i18n="cam_front">Front</option>
+        <option value="frontLeft" data-i18n="cam_frontLeft">Front ¾ left</option>
+        <option value="frontRight" data-i18n="cam_frontRight">Front ¾ right</option>
+        <option value="left" data-i18n="cam_left">Left side</option>
+        <option value="right" data-i18n="cam_right">Right side</option>
+        <option value="back" data-i18n="cam_back">Back</option>
+        <option value="top" data-i18n="cam_top">Top</option>
+        <option value="low" data-i18n="cam_low">Low angle</option>
+        <option value="face" data-i18n="cam_face">Face close-up</option>
       </select>
-      <button id="camApply" title="Snap back to the selected camera angle">⟲</button>
+      <button id="camApply" data-i18n-title="camApplyTitle" title="Snap back to the selected camera angle">⟲</button>
       <details id="lightMenu" class="menu down">
-        <summary>Lighting</summary>
+        <summary data-i18n="lighting">Lighting</summary>
         <div class="pop">
-          <div class="row"><select id="lightPreset" title="Lighting preset"></select><button id="lightReset" title="Back to the default lighting">Reset</button></div>
+          <div class="row"><select id="lightPreset" data-i18n-title="lightPresetTitle" title="Lighting preset"></select><button id="lightReset" data-i18n="reset" data-i18n-title="resetTitle" title="Back to the default lighting">Reset</button></div>
           <div id="lightSliders"></div>
-          <label><input type="checkbox" id="lightFollow"> Light follows camera</label>
-          <div class="row"><span class="pop-title">Tone mapping</span>
-            <select id="lightTone"><option value="neutral">Neutral</option><option value="agx">AgX</option><option value="aces">ACES filmic</option><option value="none">None</option></select></div>
+          <label><input type="checkbox" id="lightFollow"> <span data-i18n="lightFollow">Light follows camera</span></label>
+          <div class="row"><span class="pop-title" data-i18n="toneMapping">Tone mapping</span>
+            <select id="lightTone"><option value="neutral" data-i18n="tone_neutral">Neutral</option><option value="agx">AgX</option><option value="aces" data-i18n="tone_aces">ACES filmic</option><option value="none" data-i18n="tone_none">None</option></select></div>
         </div>
       </details>
       <span class="spacer"></span>
-      <label class="chk"><input type="checkbox" id="showExtras" checked> Show putter &amp; ball</label>
+      <label class="chk"><input type="checkbox" id="showExtras" checked> <span data-i18n="showExtras">Show putter &amp; ball</span></label>
+      <select id="lang" data-i18n-title="language" title="Language"><option value="en">English</option><option value="de">Deutsch</option></select>
     </div>
     <div id="status"></div>
     <div class="bar bottom">
-      <select id="format" title="Download format">
-        <option value="3mf">3MF (colors embedded)</option>
-        <option value="obj">OBJ (vertex colors)</option>
+      <select id="format" data-i18n-title="formatTitle" title="Download format">
+        <option value="3mf" data-i18n="fmt3mf">3MF (colors embedded)</option>
+        <option value="obj" data-i18n="fmtObj">OBJ (vertex colors)</option>
       </select>
-      <label class="chk"><input type="checkbox" id="includeExtras"> Include putter &amp; ball</label>
+      <label class="chk"><input type="checkbox" id="includeExtras"> <span data-i18n="includeExtras">Include putter &amp; ball</span></label>
       <span class="spacer"></span>
       <details id="pngMenu" class="menu">
-        <summary>Save PNG</summary>
+        <summary data-i18n="savePng">Save PNG</summary>
         <div class="pop">
-          <div class="pop-title">Background</div>
-          <label><input type="radio" name="pngBg" value="default" checked> Default</label>
-          <label><input type="radio" name="pngBg" value="white"> White</label>
-          <label><input type="radio" name="pngBg" value="transparent"> Transparent</label>
-          <div class="pop-title">Size</div>
-          <select id="pngScale"><option value="1">1× viewer</option><option value="2" selected>2× viewer</option><option value="4">4× viewer</option></select>
-          <button class="primary" id="pngSave">Save image</button>
+          <div class="pop-title" data-i18n="background">Background</div>
+          <label><input type="radio" name="pngBg" value="default" checked> <span data-i18n="bgDefault">Default</span></label>
+          <label><input type="radio" name="pngBg" value="white"> <span data-i18n="bgWhite">White</span></label>
+          <label><input type="radio" name="pngBg" value="transparent"> <span data-i18n="bgTransparent">Transparent</span></label>
+          <div class="pop-title" data-i18n="size">Size</div>
+          <select id="pngScale"><option value="1" data-i18n="scale1">1× viewer</option><option value="2" selected data-i18n="scale2">2× viewer</option><option value="4" data-i18n="scale4">4× viewer</option></select>
+          <button class="primary" id="pngSave" data-i18n="saveImage">Save image</button>
         </div>
       </details>
-      <button class="primary" id="dlChar">Download character</button>
+      <button class="primary" id="dlChar" data-i18n="dlChar">Download character</button>
     </div>
   </section>
   <aside id="panel">
     <div class="tabs">
-      <button data-tab="avatar" class="active">Avatar</button>
-      <button data-tab="putter">Putter</button>
-      <button data-tab="ball">Ball</button>
+      <button data-tab="avatar" class="active" data-i18n="tabAvatar">Avatar</button>
+      <button data-tab="putter" data-i18n="tabPutter">Putter</button>
+      <button data-tab="ball" data-i18n="tabBall">Ball</button>
     </div>
     <div id="chips"></div>
     <div id="extras"></div>
@@ -187,8 +197,67 @@ window.WMG_GEOMETRY_B64 = null;
 const STEP = META.variantStep / META.atlasSize;   // one colour variant = 16 px to the right in the palette atlas
 
 const CATS = ['model', 'head', 'eyes', 'eyebrows', 'eyelashes', 'hair', 'hat', 'glasses', 'beard', 'mouth', 'makeup', 'outfit', 'accessories'];
-const CAT_LABEL = { model: 'Model', head: 'Head', eyes: 'Eyes', eyebrows: 'Eyebrows', eyelashes: 'Lashes', hair: 'Hair', hat: 'Hat',
-  glasses: 'Glasses', beard: 'Beard', mouth: 'Mouth', makeup: 'Makeup', outfit: 'Outfit', accessories: 'Accessories' };
+// ---------------------------------------------------------------- i18n (English / German)
+// Game names (courses, packs, characters) stay as the game spells them; UI text is translated.
+const I18N = {
+  en: {
+    appTitle: 'Walkabout Avatar Creator', language: 'Language', presetsTitle: 'Presets', randomize: 'Randomize', randomTitle: 'Random avatar',
+    camTitle: 'Camera angle', cam_auto: 'Camera: Auto', cam_front: 'Front', cam_frontLeft: 'Front ¾ left', cam_frontRight: 'Front ¾ right',
+    cam_left: 'Left side', cam_right: 'Right side', cam_back: 'Back', cam_top: 'Top', cam_low: 'Low angle', cam_face: 'Face close-up',
+    camApplyTitle: 'Snap back to the selected camera angle',
+    lighting: 'Lighting', lightPresetTitle: 'Lighting preset', reset: 'Reset', resetTitle: 'Back to the default lighting',
+    lightFollow: 'Light follows camera', toneMapping: 'Tone mapping', tone_neutral: 'Neutral', tone_aces: 'ACES filmic', tone_none: 'None',
+    lp_studio: 'Studio', lp_soft: 'Soft', lp_dramatic: 'Dramatic', lp_flat: 'Flat', lp_original: 'Original (brighter)', lp_custom: 'Custom',
+    ls_exposure: 'Brightness', ls_key: 'Key light', ls_fill: 'Fill light', ls_rim: 'Rim light', ls_env: 'Reflections',
+    ls_az: 'Light direction', ls_el: 'Light height',
+    showExtras: 'Show putter & ball', formatTitle: 'Download format', fmt3mf: '3MF (colors embedded)', fmtObj: 'OBJ (vertex colors)',
+    includeExtras: 'Include putter & ball', savePng: 'Save PNG', background: 'Background', bgDefault: 'Default', bgWhite: 'White',
+    bgTransparent: 'Transparent', size: 'Size', scale1: '1× viewer', scale2: '2× viewer', scale4: '4× viewer', saveImage: 'Save image',
+    dlChar: 'Download character', tabAvatar: 'Avatar', tabPutter: 'Putter', tabBall: 'Ball',
+    cat_model: 'Model', cat_head: 'Head', cat_eyes: 'Eyes', cat_eyebrows: 'Eyebrows', cat_eyelashes: 'Lashes', cat_hair: 'Hair', cat_hat: 'Hat',
+    cat_glasses: 'Glasses', cat_beard: 'Beard', cat_mouth: 'Mouth', cat_makeup: 'Makeup', cat_outfit: 'Outfit', cat_accessories: 'Accessories',
+    style_cap: 'cap', style_visor: 'visor', style_none: 'no hair',
+    human: 'Human', modelN: 'Model {n}', none: 'None', putterN: 'Putter {n}', partsN: '{n} parts', ballN: 'Ball {n}',
+    hand: 'Hand', skinHand: 'Skin-colored hand', skinHandTitle: 'Off: the original gray glove',
+    handAddon: 'Hand add-on {n}', shaftAddon: 'Shaft add-on {n}',
+    color: 'Color', colorN: 'Color {n}', dlItem: 'Download this model',
+    presetCaptain: 'Preset: Captain (screenshot)', presetGame: 'Preset: game #{n}',
+    preparing: 'Preparing {name}…', exportFailed: 'Export failed: {msg}', imageFailed: 'Image export failed: {msg}',
+  },
+  de: {
+    appTitle: 'Walkabout Avatar-Editor', language: 'Sprache', presetsTitle: 'Vorlagen', randomize: 'Zufällig', randomTitle: 'Zufälliger Avatar',
+    camTitle: 'Kamerawinkel', cam_auto: 'Kamera: Auto', cam_front: 'Vorne', cam_frontLeft: 'Vorne ¾ links', cam_frontRight: 'Vorne ¾ rechts',
+    cam_left: 'Linke Seite', cam_right: 'Rechte Seite', cam_back: 'Hinten', cam_top: 'Oben', cam_low: 'Froschperspektive', cam_face: 'Gesicht (nah)',
+    camApplyTitle: 'Zurück zum gewählten Kamerawinkel',
+    lighting: 'Beleuchtung', lightPresetTitle: 'Beleuchtungsvorlage', reset: 'Zurücksetzen', resetTitle: 'Zurück zur Standardbeleuchtung',
+    lightFollow: 'Licht folgt der Kamera', toneMapping: 'Tonemapping', tone_neutral: 'Neutral', tone_aces: 'ACES Filmic', tone_none: 'Keins',
+    lp_studio: 'Studio', lp_soft: 'Weich', lp_dramatic: 'Dramatisch', lp_flat: 'Flach', lp_original: 'Original (heller)', lp_custom: 'Benutzerdefiniert',
+    ls_exposure: 'Helligkeit', ls_key: 'Führungslicht', ls_fill: 'Fülllicht', ls_rim: 'Kantenlicht', ls_env: 'Reflexionen',
+    ls_az: 'Lichtrichtung', ls_el: 'Lichthöhe',
+    showExtras: 'Putter & Ball anzeigen', formatTitle: 'Download-Format', fmt3mf: '3MF (mit Farben)', fmtObj: 'OBJ (Vertexfarben)',
+    includeExtras: 'Putter & Ball einschließen', savePng: 'PNG speichern', background: 'Hintergrund', bgDefault: 'Standard', bgWhite: 'Weiß',
+    bgTransparent: 'Transparent', size: 'Größe', scale1: '1× Ansicht', scale2: '2× Ansicht', scale4: '4× Ansicht', saveImage: 'Bild speichern',
+    dlChar: 'Figur herunterladen', tabAvatar: 'Avatar', tabPutter: 'Putter', tabBall: 'Ball',
+    cat_model: 'Modell', cat_head: 'Kopf', cat_eyes: 'Augen', cat_eyebrows: 'Augenbrauen', cat_eyelashes: 'Wimpern', cat_hair: 'Haare', cat_hat: 'Hut',
+    cat_glasses: 'Brille', cat_beard: 'Bart', cat_mouth: 'Mund', cat_makeup: 'Make-up', cat_outfit: 'Outfit', cat_accessories: 'Accessoires',
+    style_cap: 'Kappe', style_visor: 'Visor', style_none: 'ohne Haare',
+    human: 'Mensch', modelN: 'Modell {n}', none: 'Keine', putterN: 'Putter {n}', partsN: '{n} Teile', ballN: 'Ball {n}',
+    hand: 'Hand', skinHand: 'Hand in Hautfarbe', skinHandTitle: 'Aus: der originale graue Handschuh',
+    handAddon: 'Hand-Extra {n}', shaftAddon: 'Schaft-Extra {n}',
+    color: 'Farbe', colorN: 'Farbe {n}', dlItem: 'Dieses Modell herunterladen',
+    presetCaptain: 'Vorlage: Kapitän (Screenshot)', presetGame: 'Vorlage: Spiel #{n}',
+    preparing: '{name} wird vorbereitet…', exportFailed: 'Export fehlgeschlagen: {msg}', imageFailed: 'Bildexport fehlgeschlagen: {msg}',
+  },
+};
+let lang = window.WMG_LANG === 'de' ? 'de' : 'en';
+const t = (key, vars = {}) => String(I18N[lang][key] ?? I18N.en[key] ?? key).replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? '');
+function applyStaticI18n() {
+  document.querySelectorAll('[data-i18n]').forEach(e => { e.textContent = t(e.dataset.i18n); });
+  document.querySelectorAll('[data-i18n-title]').forEach(e => { e.title = t(e.dataset.i18nTitle); });
+  document.title = t('appTitle');
+  document.documentElement.lang = lang;
+}
+const catLabel = cat => t('cat_' + cat);
 const REQUIRED = new Set(['head']);
 // the avatar from the screenshot: [type, id, colour]
 const CAPTAIN = [[0, 1, 0], [1, 0, 1], [5, 0, 0], [8, 28, 0], [6, 7, 0], [2, 4, 8], [9, 2, 0]];
@@ -229,14 +298,14 @@ const modelByKey = Object.fromEntries(models.map(m => [m.key, m]));
 
 const pretty = s => s.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/^./, c => c.toUpperCase());
 function modelLabel(m) {
-  if (m.key === 'model_1') return 'Human';
+  if (m.key === 'model_1') return t('human');
   if (m.tag) return pretty(m.tag);
-  return (m.pack || 'Model') + ' ' + m.id;
+  return m.pack ? m.pack + ' ' + m.id : t('modelN', { n: m.id });
 }
 function partLabel(p) {
   const num = (p.name.match(/_(\d+)/) || [])[1];
   const style = (p.name.match(/_\d+_([a-z]+)/) || [])[1];
-  return `${CAT_LABEL[p.cat] || p.cat} ${num != null ? parseInt(num, 10) : ''}${style ? ' · ' + style : ''}`;
+  return `${catLabel(p.cat)} ${num != null ? parseInt(num, 10) : ''}${style ? ' · ' + t('style_' + style) : ''}`;
 }
 
 // ---------------------------------------------------------------- textures & pixel sampling
@@ -408,14 +477,14 @@ scene.environment = envFor(renderer); scene.environmentIntensity = ENV_INTENSITY
 // key = main directional light (az/el in degrees, relative to the camera when `follow` is on), fill = hemisphere light,
 // rim = back light opposite the key, env = reflection environment, exposure = tone-mapping exposure.
 const LIGHT_PRESETS = {
-  studio: { label: 'Studio', exposure: 0.9, key: 1.5, fill: 0.9, rim: 0.5, env: 0.55, az: 25, el: 36, follow: true, tone: 'neutral' },
-  soft: { label: 'Soft', exposure: 0.9, key: 0.8, fill: 1.4, rim: 0.25, env: 0.75, az: 15, el: 55, follow: true, tone: 'neutral' },
-  dramatic: { label: 'Dramatic', exposure: 1.0, key: 2.6, fill: 0.3, rim: 1.3, env: 0.3, az: 60, el: 20, follow: true, tone: 'neutral' },
-  flat: { label: 'Flat', exposure: 1.0, key: 0.3, fill: 2.0, rim: 0, env: 0.4, az: 0, el: 30, follow: true, tone: 'none' },
-  original: { label: 'Original (brighter)', exposure: 1.0, key: 1.6, fill: 1.1, rim: 0.5, env: ENV_INTENSITY, az: 26, el: 36, follow: false, tone: 'none' },
+  studio: { exposure: 0.9, key: 1.5, fill: 0.9, rim: 0.5, env: 0.55, az: 25, el: 36, follow: true, tone: 'neutral' },
+  soft: { exposure: 0.9, key: 0.8, fill: 1.4, rim: 0.25, env: 0.75, az: 15, el: 55, follow: true, tone: 'neutral' },
+  dramatic: { exposure: 1.0, key: 2.6, fill: 0.3, rim: 1.3, env: 0.3, az: 60, el: 20, follow: true, tone: 'neutral' },
+  flat: { exposure: 1.0, key: 0.3, fill: 2.0, rim: 0, env: 0.4, az: 0, el: 30, follow: true, tone: 'none' },
+  original: { exposure: 1.0, key: 1.6, fill: 1.1, rim: 0.5, env: ENV_INTENSITY, az: 26, el: 36, follow: false, tone: 'none' },
 };
-const LIGHT_SLIDERS = [['exposure', 'Brightness', 0.2, 2, 0.05], ['key', 'Key light', 0, 4, 0.05], ['fill', 'Fill light', 0, 3, 0.05],
-  ['rim', 'Rim light', 0, 3, 0.05], ['env', 'Reflections', 0, 2, 0.05], ['az', 'Light direction', -180, 180, 1], ['el', 'Light height', -20, 90, 1]];
+const LIGHT_SLIDERS = [['exposure', 0.2, 2, 0.05], ['key', 0, 4, 0.05], ['fill', 0, 3, 0.05],
+  ['rim', 0, 3, 0.05], ['env', 0, 2, 0.05], ['az', -180, 180, 1], ['el', -20, 90, 1]];   // labels: ls_* in I18N
 const TONE = { none: THREE.NoToneMapping, neutral: THREE.NeutralToneMapping, agx: THREE.AgXToneMapping, aces: THREE.ACESFilmicToneMapping };
 const LIGHT_KEY = 'wmg.lighting';
 const light = (() => {
@@ -726,7 +795,7 @@ async function makeZip(files) {
 const status = $('#status');
 function showStatus(t) { status.textContent = t; status.style.display = t ? 'block' : 'none'; }
 async function download(root, basename) {
-  showStatus(`Preparing ${basename}…`);
+  showStatus(t('preparing', { name: basename }));
   await new Promise(r => setTimeout(r, 30));
   try {
     const objs = meshesToColored(root);
@@ -736,7 +805,7 @@ async function download(root, basename) {
     document.body.append(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 10000);
     showStatus('');
-  } catch (err) { console.error(err); showStatus('Export failed: ' + err.message); setTimeout(() => showStatus(''), 4000); }
+  } catch (err) { console.error(err); showStatus(t('exportFailed', { msg: err.message })); setTimeout(() => showStatus(''), 4000); }
   finally { disposeTree(root); }
 }
 
@@ -755,7 +824,7 @@ function card({ label, sub, selected, thumb, onPick, onDownload, none }) {
   }
   c.append(th, el('div', 'lb', label), el('div', 'sb', sub || ''));
   if (onDownload) {
-    const b = el('button', 'dl', '⬇'); b.title = 'Download this model';
+    const b = el('button', 'dl', '⬇'); b.title = t('dlItem');
     b.onclick = ev => { ev.stopPropagation(); onDownload(); };
     c.append(b);
   }
@@ -771,7 +840,7 @@ function renderChips() {
   chips.replaceChildren(); extras.replaceChildren();
   if (state.tab === 'avatar') {
     for (const cat of availableCats()) {
-      const b = el('button', cat === state.cat ? 'active' : '', CAT_LABEL[cat] || cat);
+      const b = el('button', cat === state.cat ? 'active' : '', catLabel(cat));
       if (cat !== 'model' && state.equip[cat]) b.append(el('span', 'dot'));
       b.onclick = () => { state.cat = cat; renderPanel(); };
       chips.append(b);
@@ -779,14 +848,15 @@ function renderChips() {
   } else if (state.tab === 'putter') {
     const hand = el('label', 'chk'); const hc = el('input'); hc.type = 'checkbox'; hc.checked = state.hand;
     hc.onchange = () => { state.hand = hc.checked; refreshPutter(); renderPanel(); };
-    hand.append(hc, ' Hand'); extras.append(hand);
+    hand.append(hc, ' ' + t('hand')); extras.append(hand);
     const skin = el('label', 'chk'); const sc = el('input'); sc.type = 'checkbox'; sc.checked = state.skinHand;
     sc.onchange = () => { state.skinHand = sc.checked; refreshPutter(); renderPanel(); };
-    skin.append(sc, ' Skin-colored hand'); skin.title = 'Off: the original gray glove'; extras.append(skin);
+    skin.append(sc, ' ' + t('skinHand')); skin.title = t('skinHandTitle'); extras.append(skin);
     for (const a of META.addons) {
       const l = el('label', 'chk'); const i = el('input'); i.type = 'checkbox'; i.checked = state.addons.has(a);
       i.onchange = () => { i.checked ? state.addons.add(a) : state.addons.delete(a); refreshPutter(); };
-      l.append(i, ' ' + a.replace(/_/g, ' ')); extras.append(l);
+      const [, kind, n] = a.match(/^(hand|shaft)Addon_(\d+)$/) || [];
+      l.append(i, ' ' + (kind ? t(kind + 'Addon', { n }) : a.replace(/_/g, ' '))); extras.append(l);
     }
   }
 }
@@ -807,12 +877,12 @@ function renderSwatches() {
   if (state.tab !== 'avatar' || state.cat === 'model') return;
   const e = state.equip[state.cat];
   if (!e || !e.part || e.part.colors <= 1) return;
-  swatches.append(el('div', 'title', 'Color'));
+  swatches.append(el('div', 'title', t('color')));
   swatchColors(e.part).forEach((cols, v) => {
     const b = el('button', 'sw' + (v === e.variant ? ' active' : ''));
     const n = cols.length;
     b.style.background = n === 1 ? cols[0] : `linear-gradient(135deg, ${cols.map((c, i) => `${c} ${i * 100 / n}% ${(i + 1) * 100 / n}%`).join(', ')})`;
-    b.title = `Color ${v}`;
+    b.title = t('colorN', { n: v });
     b.onclick = () => { e.variant = v; variantMemory.set(e.part.k, v); refreshAvatar(); renderSwatches(); };
     swatches.append(b);
   });
@@ -831,7 +901,7 @@ function renderGrid() {
     }));
   } else if (state.tab === 'avatar') {
     const cat = state.cat;
-    if (!REQUIRED.has(cat)) frag.append(card({ label: 'None', none: true, selected: !state.equip[cat],
+    if (!REQUIRED.has(cat)) frag.append(card({ label: t('none'), none: true, selected: !state.equip[cat],
       onPick: () => { delete state.equip[cat]; refreshAvatar(); renderPanel(); } }));
     for (const p of modelParts(cat)) frag.append(card({
       label: partLabel(p), sub: p.pack, selected: state.equip[cat]?.part === p,
@@ -841,14 +911,14 @@ function renderGrid() {
     }));
   } else if (state.tab === 'putter') {
     for (const pt of META.putters) frag.append(card({
-      label: 'Putter ' + pt.id, sub: pt.parts.length + ' parts', selected: pt.id === state.putter,
+      label: t('putterN', { n: pt.id }), sub: t('partsN', { n: pt.parts.length }), selected: pt.id === state.putter,
       thumb: { key: 'pt' + pt.id + '|' + (state.hand ? skinKey() : 'nohand'), build: thumbBuilders.putter(pt.id), dir: new THREE.Vector3(0.6, 0.25, 1) },
       onPick: () => { state.putter = pt.id; refreshPutter(); renderPanel(true); },
       onDownload: () => download(putterGroup(pt.id, putterOpts(pt.id)), `walkabout_putter_${pt.id}`),
     }));
   } else {
     META.balls.forEach((b, i) => frag.append(card({
-      label: b.name.replace(/^Ball(\d+)$/, 'Ball $1').replace(/_/g, ' '), selected: i === state.ball,
+      label: /^Ball\d+$/.test(b.name) ? t('ballN', { n: b.name.slice(4) }) : b.name.replace(/_/g, ' '), selected: i === state.ball,
       thumb: { key: 'b' + i, build: thumbBuilders.ball(i), dir: new THREE.Vector3(0.2, 0.2, 1) },
       onPick: () => { state.ball = i; refreshBall(); renderPanel(true); },
       onDownload: () => download(ballMesh(i), `walkabout_${b.name}`),
@@ -883,8 +953,13 @@ document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => {
 });
 // presets
 const presetSel = $('#preset');
-presetSel.append(new Option('Preset: Captain (screenshot)', 'captain'));
-for (const p of META.presets) presetSel.append(new Option(`Preset: game #${p.id}${p.label ? ' ' + p.label : ''}`, 'g' + p.id));
+function buildPresetOptions() {
+  const v = presetSel.value;
+  presetSel.replaceChildren(new Option(t('presetCaptain'), 'captain'),
+    ...META.presets.map(p => new Option(t('presetGame', { n: p.id }) + (p.label ? ' ' + p.label : ''), 'g' + p.id)));
+  if (v) presetSel.value = v;
+}
+buildPresetOptions();
 function applyPreset(val) {
   const opts = val === 'captain' ? CAPTAIN : META.presets.find(p => 'g' + p.id === val).options;
   const r = equipFromOptions(opts);
@@ -911,15 +986,18 @@ $('#random').onclick = () => {
 $('#camView').onchange = e => { state.cam = e.target.value; focus(state.tab); };
 // lighting panel
 const lightPreset = $('#lightPreset');
-for (const [k, p] of Object.entries(LIGHT_PRESETS)) lightPreset.append(new Option(p.label, k));
-lightPreset.append(new Option('Custom', 'custom'));
+function buildLightPresetOptions() {
+  lightPreset.replaceChildren(...Object.keys(LIGHT_PRESETS).map(k => new Option(t('lp_' + k), k)), new Option(t('lp_custom'), 'custom'));
+}
+buildLightPresetOptions();
 const sliderEls = {};
-for (const [k, label, min, max, step] of LIGHT_SLIDERS) {
+for (const [k, min, max, step] of LIGHT_SLIDERS) {
   const wrap = el('label', 'slider'), inp = el('input'), out = el('output');
   Object.assign(inp, { type: 'range', min, max, step });
   inp.oninput = () => { light[k] = +inp.value; light.preset = 'custom'; syncLightUI(); applyLighting(); };
-  wrap.append(el('span', null, label), out, inp); $('#lightSliders').append(wrap);
-  sliderEls[k] = { inp, out };
+  const name = el('span', null, t('ls_' + k));
+  wrap.append(name, out, inp); $('#lightSliders').append(wrap);
+  sliderEls[k] = { inp, out, name };
 }
 function syncLightUI() {
   for (const [k, { inp, out }] of Object.entries(sliderEls)) {
@@ -935,6 +1013,17 @@ $('#lightReset').onclick = () => setLightPreset('studio');
 $('#lightFollow').onchange = e => { light.follow = e.target.checked; light.preset = 'custom'; syncLightUI(); applyLighting(); };
 $('#lightTone').onchange = e => { light.tone = e.target.value; light.preset = 'custom'; syncLightUI(); applyLighting(); };
 syncLightUI();
+// language selector (preselected from the saved choice or the browser language)
+function setLanguage(l) {
+  lang = l;
+  try { localStorage.setItem('wmg.lang', l); } catch {}
+  applyStaticI18n(); buildPresetOptions(); buildLightPresetOptions();
+  for (const [k, s] of Object.entries(sliderEls)) s.name.textContent = t('ls_' + k);
+  syncLightUI(); renderPanel();
+}
+$('#lang').value = lang;
+$('#lang').onchange = e => setLanguage(e.target.value);
+applyStaticI18n();
 $('#camApply').onclick = () => focus(state.tab);
 // Save the current view as PNG: re-render at the chosen resolution and composite over the chosen background.
 async function savePNG() {
@@ -967,7 +1056,7 @@ async function savePNG() {
   document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 10000);
   $('#pngMenu').open = false;
 }
-$('#pngSave').onclick = () => savePNG().catch(err => { console.error(err); showStatus('Image export failed: ' + err.message); setTimeout(() => showStatus(''), 4000); });
+$('#pngSave').onclick = () => savePNG().catch(err => { console.error(err); showStatus(t('imageFailed', { msg: err.message })); setTimeout(() => showStatus(''), 4000); });
 document.addEventListener('pointerdown', e => { for (const m of document.querySelectorAll('details.menu')) if (!m.contains(e.target)) m.open = false; });
 $('#showExtras').onchange = e => { putterObj.visible = ballObj.visible = e.target.checked; };
 $('#dlChar').onclick = () => {
