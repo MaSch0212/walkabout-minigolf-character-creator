@@ -73,15 +73,21 @@
     opacity: 0; transition: opacity .1s; }
   .card:hover .dl, .card.sel .dl { opacity: 1; }
   @media (hover: none) { .card .dl { opacity: 1; } }
-  #pngMenu { position: relative; }
-  #pngMenu summary { list-style: none; cursor: pointer; background: var(--panel); border: 1px solid var(--line); border-radius: 9px;
+  .menu { position: relative; }
+  .menu summary { list-style: none; cursor: pointer; background: var(--panel); border: 1px solid var(--line); border-radius: 9px;
     padding: 7px 12px; box-shadow: var(--shadow); user-select: none; }
-  #pngMenu summary::-webkit-details-marker { display: none; }
-  #pngMenu[open] summary, #pngMenu summary:hover { border-color: var(--accent); }
-  #pngMenu .pop { position: absolute; right: 0; bottom: calc(100% + 8px); width: 190px; background: var(--panel); border: 1px solid var(--line);
+  .menu summary::-webkit-details-marker { display: none; }
+  .menu[open] summary, .menu summary:hover { border-color: var(--accent); }
+  .menu .pop { position: absolute; right: 0; bottom: calc(100% + 8px); width: 190px; background: var(--panel); border: 1px solid var(--line);
     border-radius: 12px; padding: 10px 12px; box-shadow: 0 8px 24px rgba(0,0,0,.18); display: flex; flex-direction: column; gap: 6px; z-index: 5; }
-  #pngMenu .pop label { display: flex; gap: 8px; align-items: center; cursor: pointer; }
-  #pngMenu .pop-title { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .menu .pop label { display: flex; gap: 8px; align-items: center; cursor: pointer; }
+  .menu .pop-title { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .menu.down .pop { top: calc(100% + 8px); bottom: auto; left: 0; right: auto; width: 250px; }
+  .menu .pop label.slider { display: grid; grid-template-columns: 1fr auto; gap: 0 8px; font-size: 12.5px; }
+  .menu .slider input { grid-column: 1 / -1; width: 100%; accent-color: var(--accent); }
+  .menu .slider output { color: var(--muted); font-variant-numeric: tabular-nums; }
+  .menu .row { display: flex; gap: 6px; align-items: center; }
+  .menu .row select { flex: 1; }
   #status { position: absolute; left: 50%; bottom: 64px; transform: translateX(-50%); background: var(--panel); padding: 8px 14px;
     border-radius: 10px; box-shadow: 0 4px 16px rgba(0,0,0,.15); display: none; white-space: nowrap; }
   #loading { position: fixed; inset: 0; display: grid; place-items: center; background: var(--bg); z-index: 10; font-size: 15px; color: var(--muted); }
@@ -120,6 +126,16 @@
         <option value="face">Face close-up</option>
       </select>
       <button id="camApply" title="Snap back to the selected camera angle">⟲</button>
+      <details id="lightMenu" class="menu down">
+        <summary>Lighting</summary>
+        <div class="pop">
+          <div class="row"><select id="lightPreset" title="Lighting preset"></select><button id="lightReset" title="Back to the default lighting">Reset</button></div>
+          <div id="lightSliders"></div>
+          <label><input type="checkbox" id="lightFollow"> Light follows camera</label>
+          <div class="row"><span class="pop-title">Tone mapping</span>
+            <select id="lightTone"><option value="neutral">Neutral</option><option value="agx">AgX</option><option value="aces">ACES filmic</option><option value="none">None</option></select></div>
+        </div>
+      </details>
       <span class="spacer"></span>
       <label class="chk"><input type="checkbox" id="showExtras" checked> Show putter &amp; ball</label>
     </div>
@@ -131,7 +147,7 @@
       </select>
       <label class="chk"><input type="checkbox" id="includeExtras"> Include putter &amp; ball</label>
       <span class="spacer"></span>
-      <details id="pngMenu">
+      <details id="pngMenu" class="menu">
         <summary>Save PNG</summary>
         <div class="pop">
           <div class="pop-title">Background</div>
@@ -377,15 +393,53 @@ renderer.outputColorSpace = THREE.SRGBColorSpace;
 viewer.prepend(renderer.domElement);
 const scene = new THREE.Scene();
 function addLights(s) {
-  s.add(new THREE.HemisphereLight(0xffffff, 0x8a96a8, 1.1));
-  const d = new THREE.DirectionalLight(0xffffff, 1.6); d.position.set(1.2, 2, 2.5); s.add(d);
-  const d2 = new THREE.DirectionalLight(0xffffff, 0.5); d2.position.set(-2, 0.5, -1); s.add(d2);
+  const fill = new THREE.HemisphereLight(0xffffff, 0x8a96a8, 1.1); s.add(fill);
+  const key = new THREE.DirectionalLight(0xffffff, 1.6); key.position.set(1.2, 2, 2.5); s.add(key, key.target);
+  const rim = new THREE.DirectionalLight(0xffffff, 0.5); rim.position.set(-2, 0.5, -1); s.add(rim, rim.target);
+  return { fill, key, rim };
 }
-addLights(scene);
+const rig = addLights(scene);   // the thumbnail scene keeps the fixed default lights
 // reflections for metallic parts; kept low because the environment also lights non-metals
 const ENV_INTENSITY = 0.65;
 const envFor = r => { const pm = new THREE.PMREMGenerator(r); const t = pm.fromScene(new RoomEnvironment(), 0.04).texture; pm.dispose(); return t; };
 scene.environment = envFor(renderer); scene.environmentIntensity = ENV_INTENSITY;
+
+// ---------------------------------------------------------------- lighting controls (main viewer + PNG export)
+// key = main directional light (az/el in degrees, relative to the camera when `follow` is on), fill = hemisphere light,
+// rim = back light opposite the key, env = reflection environment, exposure = tone-mapping exposure.
+const LIGHT_PRESETS = {
+  studio: { label: 'Studio', exposure: 0.9, key: 1.5, fill: 0.9, rim: 0.5, env: 0.55, az: 25, el: 36, follow: true, tone: 'neutral' },
+  soft: { label: 'Soft', exposure: 0.9, key: 0.8, fill: 1.4, rim: 0.25, env: 0.75, az: 15, el: 55, follow: true, tone: 'neutral' },
+  dramatic: { label: 'Dramatic', exposure: 1.0, key: 2.6, fill: 0.3, rim: 1.3, env: 0.3, az: 60, el: 20, follow: true, tone: 'neutral' },
+  flat: { label: 'Flat', exposure: 1.0, key: 0.3, fill: 2.0, rim: 0, env: 0.4, az: 0, el: 30, follow: true, tone: 'none' },
+  original: { label: 'Original (brighter)', exposure: 1.0, key: 1.6, fill: 1.1, rim: 0.5, env: ENV_INTENSITY, az: 26, el: 36, follow: false, tone: 'none' },
+};
+const LIGHT_SLIDERS = [['exposure', 'Brightness', 0.2, 2, 0.05], ['key', 'Key light', 0, 4, 0.05], ['fill', 'Fill light', 0, 3, 0.05],
+  ['rim', 'Rim light', 0, 3, 0.05], ['env', 'Reflections', 0, 2, 0.05], ['az', 'Light direction', -180, 180, 1], ['el', 'Light height', -20, 90, 1]];
+const TONE = { none: THREE.NoToneMapping, neutral: THREE.NeutralToneMapping, agx: THREE.AgXToneMapping, aces: THREE.ACESFilmicToneMapping };
+const LIGHT_KEY = 'wmg.lighting';
+const light = (() => {
+  try { const s = JSON.parse(localStorage.getItem(LIGHT_KEY)); if (s && typeof s.key === 'number') return { ...LIGHT_PRESETS.studio, ...s }; } catch {}
+  return { ...LIGHT_PRESETS.studio, preset: 'studio' };
+})();
+function applyLighting() {
+  renderer.toneMapping = TONE[light.tone] ?? THREE.NeutralToneMapping;
+  renderer.toneMappingExposure = light.exposure;
+  const s = light.tone === 'none' ? light.exposure : 1;   // without tone mapping, brightness scales the lights instead
+  rig.fill.intensity = light.fill * s; rig.key.intensity = light.key * s; rig.rim.intensity = light.rim * s;
+  scene.environmentIntensity = light.env * s;
+  try { localStorage.setItem(LIGHT_KEY, JSON.stringify(light)); } catch {}
+}
+const _lv = new THREE.Vector3();
+function updateLightRig() {
+  const a = THREE.MathUtils.degToRad(light.az), e = THREE.MathUtils.degToRad(light.el), t = controls.target;
+  const keyDir = _lv.set(Math.sin(a) * Math.cos(e), Math.sin(e), Math.cos(a) * Math.cos(e));
+  const rimDir = new THREE.Vector3(-Math.sin(a) * 0.8, 0.35, -Math.cos(a) * 0.8 - 0.2).normalize();
+  if (light.follow) { keyDir.applyQuaternion(camera.quaternion); rimDir.applyQuaternion(camera.quaternion); }
+  rig.key.position.copy(t).addScaledVector(keyDir, 4); rig.key.target.position.copy(t);
+  rig.rim.position.copy(t).addScaledVector(rimDir, 4); rig.rim.target.position.copy(t);
+}
+applyLighting();
 const camera = new THREE.PerspectiveCamera(30, 1, 0.01, 50);
 camera.position.set(0.35, 0.05, 1.25);
 const controls = new OrbitControls(camera, renderer.domElement);
@@ -470,6 +524,7 @@ renderer.setAnimationLoop(() => {
     if (k >= 1) tween = null;
   }
   controls.update();
+  updateLightRig();
   renderer.render(scene, camera);
 });
 
@@ -854,6 +909,32 @@ $('#random').onclick = () => {
   state.equip = eq; refreshAvatar(); renderPanel();
 };
 $('#camView').onchange = e => { state.cam = e.target.value; focus(state.tab); };
+// lighting panel
+const lightPreset = $('#lightPreset');
+for (const [k, p] of Object.entries(LIGHT_PRESETS)) lightPreset.append(new Option(p.label, k));
+lightPreset.append(new Option('Custom', 'custom'));
+const sliderEls = {};
+for (const [k, label, min, max, step] of LIGHT_SLIDERS) {
+  const wrap = el('label', 'slider'), inp = el('input'), out = el('output');
+  Object.assign(inp, { type: 'range', min, max, step });
+  inp.oninput = () => { light[k] = +inp.value; light.preset = 'custom'; syncLightUI(); applyLighting(); };
+  wrap.append(el('span', null, label), out, inp); $('#lightSliders').append(wrap);
+  sliderEls[k] = { inp, out };
+}
+function syncLightUI() {
+  for (const [k, { inp, out }] of Object.entries(sliderEls)) {
+    inp.value = light[k];
+    out.textContent = k === 'az' || k === 'el' ? `${Math.round(light[k])}°` : (+light[k]).toFixed(2);
+  }
+  lightPreset.value = light.preset in LIGHT_PRESETS ? light.preset : 'custom';
+  $('#lightFollow').checked = !!light.follow; $('#lightTone').value = light.tone;
+}
+function setLightPreset(k) { Object.assign(light, LIGHT_PRESETS[k], { preset: k }); syncLightUI(); applyLighting(); }
+lightPreset.onchange = () => { if (lightPreset.value in LIGHT_PRESETS) setLightPreset(lightPreset.value); };
+$('#lightReset').onclick = () => setLightPreset('studio');
+$('#lightFollow').onchange = e => { light.follow = e.target.checked; light.preset = 'custom'; syncLightUI(); applyLighting(); };
+$('#lightTone').onchange = e => { light.tone = e.target.value; light.preset = 'custom'; syncLightUI(); applyLighting(); };
+syncLightUI();
 $('#camApply').onclick = () => focus(state.tab);
 // Save the current view as PNG: re-render at the chosen resolution and composite over the chosen background.
 async function savePNG() {
@@ -875,7 +956,7 @@ async function savePNG() {
   }
   try {
     renderer.setPixelRatio(1); renderer.setSize(w, h, false);
-    renderer.render(scene, camera);
+    updateLightRig(); renderer.render(scene, camera);
     ctx.drawImage(renderer.domElement, 0, 0);   // same task as the render, so the drawing buffer is still valid
   } finally {
     renderer.setPixelRatio(ratio); resize(); renderer.render(scene, camera);
@@ -887,7 +968,7 @@ async function savePNG() {
   $('#pngMenu').open = false;
 }
 $('#pngSave').onclick = () => savePNG().catch(err => { console.error(err); showStatus('Image export failed: ' + err.message); setTimeout(() => showStatus(''), 4000); });
-document.addEventListener('pointerdown', e => { if (!$('#pngMenu').contains(e.target)) $('#pngMenu').open = false; });
+document.addEventListener('pointerdown', e => { for (const m of document.querySelectorAll('details.menu')) if (!m.contains(e.target)) m.open = false; });
 $('#showExtras').onchange = e => { putterObj.visible = ballObj.visible = e.target.checked; };
 $('#dlChar').onclick = () => {
   const root = new THREE.Group();
@@ -905,7 +986,7 @@ refreshPutter(); refreshBall();
 resize();
 focus('avatar', true);
 $('#loading').remove();
-window.__wmg = { savePNG, focus, state, META, meshesToColored, build3MF, buildOBJ, avatarGroup, putterGroup, ballMesh, camera, viewBox, get putterObj() { return putterObj; } };   // for debugging in the console
+window.__wmg = { light, setLightPreset, rig, renderer, savePNG, focus, state, META, meshesToColored, build3MF, buildOBJ, avatarGroup, putterGroup, ballMesh, camera, viewBox, get putterObj() { return putterObj; } };   // for debugging in the console
 
 </script>
 </body>
