@@ -1,11 +1,17 @@
 # Build data/bundle.js (+ textures) for the web character creator from the game's asset bundles. Needs UnityPy, numpy, Pillow.
-import UnityPy, json, base64, os, re, struct, numpy as np
+# Usage: python tools/build_data.py "<Walkabout Mini Golf install folder>"
+import UnityPy, json, base64, os, re, struct, sys, glob, numpy as np
 from UnityPy.helpers.MeshHelper import MeshHandler
 from PIL import Image
-A=r"F:\Oculus\Software\Software\mighty-coconut-walkabout-mini-golf\WalkaboutMiniGolf_Data\StreamingAssets\aa\StandaloneWindows64"
-OUT=r"D:\export\character_creator"
+if len(sys.argv)!=2: sys.exit('usage: python tools/build_data.py "<Walkabout Mini Golf install folder>"')
+hits=glob.glob(os.path.join(glob.escape(sys.argv[1]),"**","avatarsandputters_assets_all.bundle"),recursive=True)
+if not hits: sys.exit("avatarsandputters_assets_all.bundle not found under "+sys.argv[1])
+A=os.path.dirname(hits[0])
+if not os.path.isfile(os.path.join(A,"common_assets_all.bundle")): sys.exit("common_assets_all.bundle not found in "+A)
+print("reading",A)
+OUT=os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 os.makedirs(os.path.join(OUT,"data"),exist_ok=True)
-env=UnityPy.load(A+r"\avatarsandputters_assets_all.bundle")
+env=UnityPy.load(os.path.join(A,"avatarsandputters_assets_all.bundle"))
 bypath={o.path_id:o for o in env.objects}
 CAT={1:"head",2:"beard",3:"eyebrows",4:"eyelashes",5:"eyes",6:"glasses",7:"hair",8:"hat",9:"outfit",10:"accessories",17:"makeup",18:"mouth"}
 
@@ -117,7 +123,7 @@ print(len(balls),"balls")
 # ---------- textures ----------
 atlas=[o for o in env.objects if o.type.name=="Texture2D" and o.peek_name()=="avatar_texture_4096_brian_putters"][0].read().image.convert("RGB")
 atlas.save(os.path.join(OUT,"data","avatar_atlas.png"))
-env2=UnityPy.load(A+r"\common_assets_all.bundle")
+env2=UnityPy.load(os.path.join(A,"common_assets_all.bundle"))
 bt=[o for o in env2.objects if o.type.name=="Texture2D" and o.peek_name()=="BallsTexture"][0].read().image.convert("RGB")
 bt.save(os.path.join(OUT,"data","balls_texture.png"))
 
