@@ -112,6 +112,9 @@
   #status { position: absolute; left: 50%; bottom: 64px; transform: translateX(-50%); background: var(--panel); padding: 8px 14px;
     border-radius: 10px; box-shadow: 0 4px 16px rgba(0,0,0,.15); display: none; white-space: nowrap; }
   #loading { position: fixed; inset: 0; display: grid; place-items: center; background: var(--bg); z-index: 10; font-size: 15px; color: var(--muted); }
+  #loading .missing { max-width: 440px; padding: 0 16px; line-height: 1.5; color: var(--text); }
+  #loading .missing b { font-size: 18px; }
+  #loading .missing code { background: var(--panel-2); padding: 1px 5px; border-radius: 4px; }
   @media (max-width: 860px) {
     #app { grid-template-columns: 1fr; grid-template-rows: 55vh auto; height: auto; }
     #panel { border-left: 0; border-top: 1px solid var(--line); }
@@ -234,6 +237,14 @@
   </aside>
 </div>
 <script src="data/bundle.js"></script>
+<script>
+  // without the extracted game data the creator can't start, so say how to get it instead of showing a broken page
+  if (!window.WMG_META) {
+    document.getElementById('loading').innerHTML = window.WMG_LANG === 'de'
+      ? '<div class="missing"><b>Die Spieldaten fehlen noch.</b><p>Doppelklicke im Ordner des Editors auf <code>Extract game data.bat</code>. Danach öffnet sich der Editor von selbst.</p><p>Eine Schritt-für-Schritt-Anleitung steht in <code>README.de.md</code>.</p></div>'
+      : '<div class="missing"><b>The game data is missing.</b><p>Double-click <code>Extract game data.bat</code> in the creator\'s folder. The creator opens on its own when it\'s done.</p><p>Step-by-step instructions are in <code>README.md</code>.</p></div>';
+  }
+</script>
 <script type="module">
 // Walkabout Mini Golf avatar creator — three.js viewer, part picker and single-file 3MF/OBJ export.
 import * as THREE from 'three';
