@@ -37,7 +37,7 @@ That's all. The setup file in step 3 takes care of the rest.
 
 ### Step 2: Download the creator
 
-1. At the top of this page, click the green **Code** button, then **Download ZIP**.
+1. **[Click here to download the creator](https://github.com/MaSch0212/walkabout-minigolf-character-creator/archive/refs/heads/main.zip)** (a ZIP file).
 2. Open your **Downloads** folder. Right-click the downloaded file (`walkabout-minigolf-character-creator-main.zip`) and choose **Extract All…**.
 3. Pick a place where you'll find it again, for example your **Documents** folder, and click **Extract**.
 

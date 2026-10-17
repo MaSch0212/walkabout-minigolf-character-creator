@@ -37,7 +37,7 @@ Das war's. Um den Rest kümmert sich die Einrichtungsdatei in Schritt 3.
 
 ### Schritt 2: Den Editor herunterladen
 
-1. Klicke oben auf dieser Seite auf den grünen Button **Code** und dann auf **Download ZIP**.
+1. **[Klicke hier, um den Editor herunterzuladen](https://github.com/MaSch0212/walkabout-minigolf-character-creator/archive/refs/heads/main.zip)** (eine ZIP-Datei).
 2. Öffne deinen Ordner **Downloads**. Klicke mit der rechten Maustaste auf die heruntergeladene Datei (`walkabout-minigolf-character-creator-main.zip`) und wähle **Alle extrahieren…**.
 3. Wähle einen Ort, an dem du den Ordner wiederfindest, zum Beispiel deinen Ordner **Dokumente**, und klicke auf **Extrahieren**.
 
